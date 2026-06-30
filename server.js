@@ -1,91 +1,98 @@
-// server.js
-// Backend simples para o chat do "Cantinho do Lucas".
-// Guarda a chave da Anthropic no servidor e repassa as mensagens do widget.
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+dotenv.config();
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
-const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini"
-// Lista de origens permitidas a chamar este backend (seu domínio do site).
-// Em dev, "*" libera geral; em produção, troque pelo seu domínio real.
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+// 🔑 API KEY (OpenRouter)
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+// 🤖 MODELO
+const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+
+// ❌ bloqueio se não tiver chave
 if (!OPENROUTER_API_KEY) {
-  console.error('ERRO: defina OPENROUTER_API_KEY no Render antes de iniciar o servidor.');
+  console.error("ERRO: defina OPENROUTER_API_KEY no Render antes de iniciar o servidor.");
   process.exit(1);
 }
 
-app.use(cors({ origin: ALLOWED_ORIGIN }));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.static('public'));
+// 🧠 PERSONALIDADE FIXA (SEU “DR HOUSE ANALÍTICO”)
+const SYSTEM_PROMPT = {
+  role: "system",
+  content: `
+Você é o assistente do "Cantinho do Lucas".
 
-// Limite simples de tamanho de histórico, pra evitar abuso/custo alto
-const MAX_HISTORY_MESSAGES = 30;
-const MAX_MESSAGE_CHARS = 4000;
+Personalidade:
+- extremamente analítico e racional
+- inspirado em filosofia analítica e filosofia clássica
+- introspectivo e observador
+- comunicação direta, sem floreios desnecessários
+- ocasionalmente levemente sarcástico, estilo clínico e observador (tipo Dr. House moderado)
+- evita sentimentalismo exagerado e frases motivacionais vazias
+- prioriza precisão conceitual e clareza lógica
 
-const SYSTEM_PROMPT = "Você é um assistente acolhedor que conversa com visitantes do \"Cantinho do Lucas\", uma página pessoal com clima introspectivo (tons escuros, chuva, mural de recados). Você não é o dono da página nem finge ser uma pessoa real chamada Lucas — você é apenas um assistente disponível para bater papo, tirar dúvidas sobre como usar a página, ou simplesmente ouvir quem está passando por ali. Responda em português do Brasil, de forma breve, gentil e natural, sem soar robótico. Se perceber sinais de sofrimento intenso, acolha com cuidado e sugira buscar apoio de alguém de confiança ou de um profissional, sem ser alarmista.";
+Regras:
+- não dramatizar emoções
+- não romantizar sofrimento
+- não inventar fatos
+- não exagerar sarcasmo
+- manter tom humano, mas intelectual
 
-function validateHistory(history) {
-  if (!Array.isArray(history)) return null;
-  if (history.length === 0 || history.length > MAX_HISTORY_MESSAGES) return null;
+Objetivo:
+Ajudar o usuário a pensar com clareza, analisar ideias e refletir de forma racional e honesta.
+`
+};
 
-  for (const msg of history) {
-    if (!msg || typeof msg !== 'object') return null;
-    if (msg.role !== 'user' && msg.role !== 'assistant') return null;
-    if (typeof msg.content !== 'string') return null;
-    if (msg.content.length === 0 || msg.content.length > MAX_MESSAGE_CHARS) return null;
-  }
-  return history;
-}
-
-app.post('/api/chat', async (req, res) => {
-  const history = validateHistory(req.body && req.body.history);
-
-  if (!history) {
-    return res.status(400).json({ error: 'Histórico de mensagens inválido.' });
-  }
-
+// 📡 CHAT ROUTE
+app.post("/api/chat", async (req, res) => {
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    const messages = req.body.messages;
+
+    if (!messages) {
+      return res.status(400).json({ error: "Mensagens não enviadas" });
+    }
+
+    // injeta personalidade no início da conversa
+    const fullMessages = [SYSTEM_PROMPT, ...messages];
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://cantinho-do-lucas",
+        "X-Title": "Cantinho do Lucas"
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: history
+        messages: fullMessages
       })
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Erro da Anthropic API:', response.status, errText);
-      return res.status(502).json({ error: 'Falha ao falar com o modelo.' });
+    const data = await response.json();
+
+    const reply = data?.choices?.[0]?.message?.content;
+
+    if (!reply) {
+      return res.status(500).json({ error: "Resposta inválida da IA" });
     }
 
-    const data = await response.json();
-    const reply = (data.content || [])
-      .map(block => (block.type === 'text' ? block.text : ''))
-      .filter(Boolean)
-      .join('\n') || 'desculpa, não consegui responder agora.';
-
     res.json({ reply });
-  } catch (err) {
-    console.error('Erro no proxy do chat:', err);
-    res.status(500).json({ error: 'Erro interno no servidor.' });
+
+  } catch (error) {
+    console.error("Erro no servidor:", error);
+    res.status(500).json({ error: "Erro interno no servidor" });
   }
 });
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+// 🚀 START SERVER
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Servidor do chat rodando em http://localhost:${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
+
