@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Proxy backend para o chat do Cantinho do Lucas.",
   "main": "server.js",
-  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
