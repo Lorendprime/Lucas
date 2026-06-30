@@ -8,15 +8,14 @@ require('dotenv').config();
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
+const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini"
 // Lista de origens permitidas a chamar este backend (seu domínio do site).
 // Em dev, "*" libera geral; em produção, troque pelo seu domínio real.
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
 
-if (!ANTHROPIC_API_KEY) {
-  console.error('ERRO: defina ANTHROPIC_API_KEY no arquivo .env antes de iniciar o servidor.');
+if (!OPENROUTER_API_KEY) {
+  console.error('ERRO: defina OPENROUTER_API_KEY no Render antes de iniciar o servidor.');
   process.exit(1);
 }
 
