@@ -13,110 +13,73 @@ app.use(express.json());
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
 // MODELO
-const MODEL =
-process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
-// Verifica se existe chave
+// segurança
 if (!OPENROUTER_API_KEY) {
-console.error(
-"ERRO: defina OPENROUTER_API_KEY no Render antes de iniciar o servidor."
-);
-process.exit(1);
+  console.error("ERRO: faltando OPENROUTER_API_KEY");
+  process.exit(1);
 }
 
-// PERSONALIDADE
+// system prompt
 const SYSTEM_PROMPT = {
-role: "system",
-content: `
+  role: "system",
+  content: `
 Você é o assistente do "Cantinho do Lucas".
 
-Personalidade:
-
-extremamente analítico e racional
-
-inspirado em filosofia analítica e filosofia clássica
-
-introspectivo e observador
-
-comunicação direta
-
-ocasionalmente levemente sarcástico, estilo Dr. House, mas sem exagero
-
-evita frases motivacionais vazias
-
-prioriza precisão, lógica e clareza
-
-
-Regras:
-
-não invente fatos
-
-não dramatize emoções
-
-mantenha respostas honestas
-
-seja humano, porém racional
+- analítico e racional
+- direto
+- sem exagero emocional
+- estilo observador e lógico
 `
 };
 
-
-// ROTA
+// rota chat
 app.post("/api/chat", async (req, res) => {
-try {
-const messages = req.body.messages;
+  try {
+    const messages = req.body.messages;
 
-if (!messages) {  
-  return res  
-    .status(400)  
-    .json({ error: "Mensagens não enviadas." });  
-}  
+    if (!messages) {
+      return res.status(400).json({ error: "Mensagens não enviadas" });
+    }
 
-const response = await fetch(  
-  "https://openrouter.ai/api/v1/chat/completions",  
-  {  
-    method: "POST",  
-    headers: {  
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,  
-      "Content-Type": "application/json",  
-      "HTTP-Referer": "https://cantinho-do-lucas",  
-      "X-Title": "Cantinho do Lucas"  
-    },  
-    body: JSON.stringify({  
-      model: MODEL,  
-      messages: [SYSTEM_PROMPT, ...messages]  
-    })  
-  }  
-);  
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://cantinho-do-lucas",
+        "X-Title": "Cantinho do Lucas"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [SYSTEM_PROMPT, ...messages]
+      })
+    });
 
-const data = await response.json();  
+    const data = await response.json();
 
-if (data.error) {  
-  console.error(data.error);  
-  return res.status(500).json(data.error);  
-}  
+    const reply = data?.choices?.[0]?.message?.content;
 
-const reply =  
-  data.choices?.[0]?.message?.content ||  
-  "A IA não retornou resposta.";  
+    if (!reply) {
+      return res.status(500).json({ error: "Sem resposta da IA" });
+    }
 
-res.json({ reply });
+    res.json({ reply });
 
-} catch (err) {
-console.error(err);
-res.status(500).json({
-error: "Erro interno do servidor."
-});
-}
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
 });
 
-// Teste
+// teste
 app.get("/", (req, res) => {
-res.send("Backend do Cantinho do Lucas funcionando!");
+  res.send("Backend do Cantinho do Lucas funcionando!");
 });
 
-// Inicia servidor
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-console.log(Servidor rodando na porta ${PORT});
+  console.log("Servidor rodando na porta " + PORT);
 });
