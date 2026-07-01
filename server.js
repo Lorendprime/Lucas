@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require("path");
 
 dotenv.config();
 
@@ -8,6 +9,9 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Serve arquivos do frontend (public/index.html)
+app.use(express.static(path.join(__dirname, "public")));
 
 // API KEY
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -47,15 +51,13 @@ Regras:
 `
 };
 
-// ROTA
+// ROTA CHAT
 app.post("/api/chat", async (req, res) => {
   try {
     const messages = req.body.messages;
 
     if (!messages) {
-      return res
-        .status(400)
-        .json({ error: "Mensagens não enviadas." });
+      return res.status(400).json({ error: "Mensagens não enviadas." });
     }
 
     const response = await fetch(
@@ -65,7 +67,7 @@ app.post("/api/chat", async (req, res) => {
         headers: {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://cantinho-do-lucas",
+          "HTTP-Referer": "https://lucas-6.onrender.com",
           "X-Title": "Cantinho do Lucas"
         },
         body: JSON.stringify({
@@ -96,9 +98,9 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Teste
+// Página principal (opcional, mas garante funcionamento)
 app.get("/", (req, res) => {
-  res.send("Backend do Cantinho do Lucas funcionando!");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Inicia servidor
