@@ -10,7 +10,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve arquivos do frontend (public/index.html)
+// Serve o front (public/index.html)
 app.use(express.static(path.join(__dirname, "public")));
 
 // API KEY
@@ -20,15 +20,13 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL =
   process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
-// Verifica se existe chave
+// segurança
 if (!OPENROUTER_API_KEY) {
-  console.error(
-    "ERRO: defina OPENROUTER_API_KEY no Render antes de iniciar o servidor."
-  );
+  console.error("ERRO: faltando OPENROUTER_API_KEY no Render");
   process.exit(1);
 }
 
-// PERSONALIDADE
+// personalidade
 const SYSTEM_PROMPT = {
   role: "system",
   content: `
@@ -36,22 +34,20 @@ Você é o assistente do "Cantinho do Lucas".
 
 Personalidade:
 - extremamente analítico e racional
-- inspirado em filosofia analítica e filosofia clássica
-- introspectivo e observador
-- comunicação direta
-- ocasionalmente levemente sarcástico, estilo Dr. House, mas sem exagero
-- evita frases motivacionais vazias
-- prioriza precisão, lógica e clareza
+- inspirado em filosofia analítica e clássica
+- direto e observador
+- leve sarcasmo ocasional estilo House
+- evita frases vazias
+- prioriza lógica e clareza
 
 Regras:
 - não invente fatos
 - não dramatize emoções
-- mantenha respostas honestas
-- seja humano, porém racional
+- seja preciso e honesto
 `
 };
 
-// ROTA CHAT
+// CHAT ROUTE
 app.post("/api/chat", async (req, res) => {
   try {
     const messages = req.body.messages;
@@ -79,14 +75,16 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
 
-    if (data.error) {
-      console.error(data.error);
-      return res.status(500).json(data.error);
+    if (!response.ok || data.error) {
+      console.error(data);
+      return res.status(500).json({
+        error: "Erro ao chamar OpenRouter"
+      });
     }
 
     const reply =
       data.choices?.[0]?.message?.content ||
-      "A IA não retornou resposta.";
+      "Sem resposta da IA.";
 
     res.json({ reply });
 
@@ -98,12 +96,12 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Página principal (opcional, mas garante funcionamento)
+// página principal
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Inicia servidor
+// start
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
