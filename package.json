@@ -1,85 +1,14 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-
-dotenv.config();
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-// API KEY
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
-// MODELO
-const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
-
-// segurança
-if (!OPENROUTER_API_KEY) {
-  console.error("ERRO: faltando OPENROUTER_API_KEY");
-  process.exit(1);
-}
-
-// system prompt
-const SYSTEM_PROMPT = {
-  role: "system",
-  content: `
-Você é o assistente do "Cantinho do Lucas".
-
-- analítico e racional
-- direto
-- sem exagero emocional
-- estilo observador e lógico
-`
-};
-
-// rota chat
-app.post("/api/chat", async (req, res) => {
-  try {
-    const messages = req.body.messages;
-
-    if (!messages) {
-      return res.status(400).json({ error: "Mensagens não enviadas" });
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://cantinho-do-lucas",
-        "X-Title": "Cantinho do Lucas"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [SYSTEM_PROMPT, ...messages]
-      })
-    });
-
-    const data = await response.json();
-
-    const reply = data?.choices?.[0]?.message?.content;
-
-    if (!reply) {
-      return res.status(500).json({ error: "Sem resposta da IA" });
-    }
-
-    res.json({ reply });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erro interno" });
+{
+  "name": "cantinho-do-lucas",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0"
   }
-});
-
-// teste
-app.get("/", (req, res) => {
-  res.send("Backend do Cantinho do Lucas funcionando!");
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Servidor rodando na porta " + PORT);
-});
+}
