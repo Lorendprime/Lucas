@@ -1,18 +1,78 @@
-{
-  "name": "cantinho-lucas-backend",
-  "version": "1.0.0",
-  "description": "Proxy backend para o chat do Cantinho do Lucas.",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
-  },
-  "engines": {
-    "node": ">=18"
-  }
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+
+if (!OPENROUTER_API_KEY) {
+  console.error("ERRO: OPENROUTER_API_KEY não definida");
+  process.exit(1);
 }
+
+const SYSTEM_PROMPT = {
+  role: "system",
+  content: `
+Você é o assistente do Cantinho do Lucas.
+
+- analítico
+- direto
+- racional
+- sem exageros emocionais
+`
+};
+
+app.post("/api/chat", async (req, res) => {
+  try {
+    const messages = req.body.messages;
+
+    if (!messages) {
+      return res.status(400).json({ error: "Mensagens não enviadas" });
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [SYSTEM_PROMPT, ...messages]
+      })
+    });
+
+    const data = await response.json();
+
+    console.log("OPENROUTER RESPONSE:", data);
+
+    if (!response.ok) {
+      return res.status(500).json({ error: data });
+    }
+
+    const reply = data?.choices?.[0]?.message?.content;
+
+    if (!reply) {
+      return res.status(500).json({ error: "Resposta vazia da IA" });
+    }
+
+    res.json({ reply });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno do servidor" });
+  }
+});
+
+app.get("/", (req, res) => {
+  res.send("Backend do Cantinho do Lucas funcionando!");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Servidor rodando na porta " + PORT));
